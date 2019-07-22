@@ -27,7 +27,7 @@ int main() {
             std::cout << "Read a file: '" << data << "'\n";
 
             // Read another file
-            readFile( "myOtherFile.txtl", p ).then( [](EventLoop& ctrl, std::string& data) {
+            readFile( "myOtherFile.txt", p ).then( [](EventLoop& ctrl, std::string& data) {
                 std::cout << "Read another file: '" << data << "'\n";
 
                 // Stop the event loop
