@@ -11,9 +11,12 @@
 /**
  * Templated Promise Class
  * A task that can fire either a 'resolve' or a 'reject' event
+ * The template parameters define the base types of the events to be stored
+ * where the actual events stored are specialized with the type of functor (lambda)
+ * they contain
  *
- * @tparam T_ResolveEventTemp - Type of the resolve event
- * @tparam T_RejectEventTemp  - Type of the reject event
+ * @tparam T_ResolveEventTemp - Base type of the resolve event
+ * @tparam T_RejectEventTemp  - Base type of the reject event
  */
 template< typename T_ResolveEventTemp, typename T_RejectEventTemp >
 class Promise : public Task {
@@ -22,22 +25,36 @@ protected:
     std::unique_ptr<T_RejectEventTemp> m_callbackReject;
 
 public:
-    using T_ResolveEvent= T_ResolveEventTemp;
-    using T_RejectEvent= T_RejectEventTemp;
+    // Types of the base events (pointer types)
+    using T_ResolveEventBase= T_ResolveEventTemp;
+    using T_RejectEventBase= T_RejectEventTemp;
 
-    Promise( std::unique_ptr<T_ResolveEvent> res, std::unique_ptr<T_RejectEvent> rej )
+    // Types of the implemented events
+    template< typename T_Lambda >
+    using T_ResolveEvent = EventImplement< T_ResolveEventBase, T_Lambda >;
+
+    template< typename T_Lambda >
+    using T_RejectEvent = EventImplement< T_RejectEventBase, T_Lambda >;
+
+    // Constructors
+    Promise( std::unique_ptr<T_ResolveEventBase> res, std::unique_ptr<T_RejectEventBase> rej )
             : m_callbackResolve( std::move(res) ), m_callbackReject( std::move(rej) ) {}
 
     Promise()
             : m_callbackResolve(nullptr), m_callbackReject(nullptr) {}
 
-    inline void setResolve( std::unique_ptr<T_ResolveEventTemp> r ) {
-        //std::assert( m_callbackResolve, "Promise: Resolve callback cannot be overridden." );
+    // Setters
+    inline void setResolve( std::unique_ptr<T_ResolveEventBase> r ) {
+        if( m_callbackResolve ) {
+            throw std::runtime_error("Promise: Resolve callback cannot be overridden.");
+        }
         m_callbackResolve= std::move( r );
     }
 
-    inline void setReject( std::unique_ptr<T_RejectEventTemp> r ) {
-        //static_assert( m_callbackReject, "Promise: Reject callback cannot be overridden." );
+    inline void setReject( std::unique_ptr<T_RejectEventBase> r ) {
+        if( m_callbackReject ) {
+            throw std::runtime_error("Promise: Reject callback cannot be overridden.");
+        }
         m_callbackReject= std::move( r );
     }
 };
@@ -56,6 +73,15 @@ private:
     WorkerPool& m_pool;
 
 public:
+
+    // Types of the implemented events
+    template< typename T_X >
+    using T_ResolveEventType= typename T_Promise::template T_ResolveEvent<T_X>;
+
+    template< typename T_X >
+    using T_RejectEventType= typename T_Promise::template T_RejectEvent<T_X>;
+
+    // Constructors & Destructors
     PromiseBuilder( std::unique_ptr<T_Promise> pr, WorkerPool& p )
             : m_promise( std::move(pr) ), m_pool(p) {}
 
@@ -68,16 +94,34 @@ public:
     PromiseBuilder( PromiseBuilder<T_Promise>&& x )= default;
 
 
-    inline PromiseBuilder& then( std::unique_ptr<typename T_Promise::T_ResolveEvent> res ) {
+    // Chainable setters
+    inline PromiseBuilder& then( std::unique_ptr<typename T_Promise::T_ResolveEventBase> res ) {
         m_promise->setResolve( std::move(res) );
         return *this;
     }
 
-    inline PromiseBuilder& except( std::unique_ptr<typename T_Promise::T_RejectEvent> rej ) {
+    inline PromiseBuilder& except( std::unique_ptr<typename T_Promise::T_RejectEventBase> rej ) {
         m_promise->setReject( std::move(rej) );
         return *this;
     }
+
+
+
+    template< typename T_Lambda >
+    inline PromiseBuilder& then( T_Lambda&& lam ) {
+
+        m_promise->setResolve( std::make_unique<T_ResolveEventType<T_Lambda> >( std::forward<T_Lambda>(lam) ) );
+        return *this;
+    }
+
+    template< typename T_Lambda >
+    inline PromiseBuilder& except( T_Lambda&& lam ) {
+        m_promise->setReject( std::make_unique<T_RejectEventType<T_Lambda> >( std::forward<T_Lambda>(lam) ) );
+        return *this;
+    }
 };
+
+
 
 
 /**

@@ -34,7 +34,7 @@ public:
         m_enable= false;
     }
 
-    inline void sendEvent( std::unique_ptr<Event> ev );
+    void sendEvent( std::unique_ptr<Event> ev );
 
     void run();
 };

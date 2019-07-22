@@ -4,6 +4,10 @@
 #include "EventLoop.h"
 #include "FileLoader.h"
 
+void myFileError( EventLoop& l, const std::string& p, const int err ) {
+    std::cout << "File '" << p << "' could not be loaded with code: " << err << std::endl;
+    l.stop();
+}
 
 int main() {
     std::cout << "Hello, World! This is a demo!\n";
@@ -18,22 +22,23 @@ int main() {
     // Keep the promise builder scoped, so that it submits the promise on destruction
     {
         // Read a text file
-        readFile( "myFile.txt", p ).then( createEvent<FileLoaderEvent>( [&p](EventLoop&, std::string& data ) {
+        readFile( "myFile.txt", p ).then( [&p](EventLoop&, std::string& data ) {
             // Output the contents of the file
             std::cout << "Read a file: '" << data << "'\n";
 
             // Read another file
-            readFile( "myOtherFile.txt", p ).then( createEvent<FileLoaderEvent>( [](EventLoop& ctrl, std::string& data) {
+            readFile( "myOtherFile.txtl", p ).then( [](EventLoop& ctrl, std::string& data) {
                 std::cout << "Read another file: '" << data << "'\n";
 
                 // Stop the event loop
                 ctrl.stop();
 
-            } ) );
+            } ).except( myFileError );
 
-        } ) ).except( createEvent<FunctionEvent>( [](EventLoop&) {
+        } ).except( [](EventLoop&, std::string& p, int err) {
             std::cout << "Oh no something went wrong!\n";
-        } ) ) ;
+            std::cout << "Could not load file: '" << p << "' with error code: " << err << std::endl;
+        } ) ;
     }
 
     // Run the event loop and process ingoing events

@@ -31,6 +31,62 @@ public:
     void execute( EventLoop& ) override { throw std::runtime_error("Calling unused base class Event method!\n"); }
 };
 
+
+/**
+ * Templated Event Container Class
+ * Stored the data of an event with an internal tuple
+ * This class serves as a base class for all the different events containing a
+ * functor (lambda) to be executed
+ * As the type of the functor as to be templated the actual event class is
+ * a specialised version of this one
+ *
+ * @tparam T_TupleData - Types of data which are used to call the functor with
+ */
+template< typename ... T_TupleData >
+class EventContainer : public virtual EventBase {
+protected:
+    using T_Tuple= std::tuple< T_TupleData... >;
+    T_Tuple m_data;
+
+public:
+    inline T_Tuple& getData() { return m_data; }
+};
+
+
+
+/**
+ * Templated EventImplement Class
+ * This class derives from a class provided as a template parameter which
+ * is an EventContainer<>
+ *
+ *
+ * @tparam T_Parent - Event Container to implement
+ * @tparam T_Lambda - Lambda type to store
+ */
+template< typename T_Parent, typename T_Lambda >
+class EventImplement : public T_Parent {
+private:
+    LambdaContainer<T_Lambda> m_function;
+
+    template<size_t ... I>
+    auto call( EventLoop& l, std::index_sequence<I ...> )
+    {
+        return m_function.get()( l, std::get<I>(T_Parent::m_data) ...);
+    }
+
+public:
+    EventImplement( T_Lambda&& lam )
+            : m_function( std::forward<T_Lambda>(lam) ) {}
+
+    void execute( EventLoop& l ) override {
+
+        static constexpr auto size = std::tuple_size<typename T_Parent::T_Tuple>::value;
+        call( l, std::make_index_sequence<size>{} );
+    }
+};
+
+
+
 /**
  * Templated Function Event Class
  * Allowing the execution of a Lambda which is held by value
