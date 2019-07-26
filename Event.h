@@ -50,6 +50,9 @@ protected:
 
 public:
     inline T_Tuple& getData() { return m_data; }
+
+    template< unsigned int T_index >
+    inline auto& getData() { return std::get<T_index>(m_data); }
 };
 
 

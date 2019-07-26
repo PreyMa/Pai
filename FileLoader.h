@@ -38,8 +38,8 @@ public:
 
         if( !t.is_open() ) {
             if( m_callbackReject ) {
-                std::get<0>(m_callbackReject->getData())= std::move( m_path );
-                std::get<1>(m_callbackReject->getData())= -1;
+                m_callbackReject->getData<0>()= std::move( m_path );
+                m_callbackReject->getData<1>()= -1;
                 intf.sendEvent(std::move(m_callbackReject));
                 return;
             }
