@@ -41,8 +41,9 @@ public:
                 m_callbackReject->getData<0>()= std::move( m_path );
                 m_callbackReject->getData<1>()= -1;
                 intf.sendEvent(std::move(m_callbackReject));
-                return;
             }
+
+            return;
         }
 
         t.seekg(0, std::ios::end);
