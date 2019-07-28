@@ -6,7 +6,6 @@
 #define PROMISE_EVENTLOOP_H
 
 
-#include <iostream>
 #include "Event.h"
 #include "EventQueue.h"
 #include "WorkerPool.h"

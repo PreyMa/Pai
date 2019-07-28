@@ -6,6 +6,7 @@
 #include "ForEach.h"
 #include "Crash.h"
 #include "Console.h"
+#include "ObjectPool.h"
 
 void myFileError( EventLoop& l, const std::string& p, const int err ) {
     Console::errorln( "File '", p, "' could not be loaded with code: ", err );
@@ -69,4 +70,5 @@ int main() {
     p.stopAndJoin();
 
     return 0;
+
 }
