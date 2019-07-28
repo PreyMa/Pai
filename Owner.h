@@ -22,7 +22,7 @@ public:
 
     template< typename ... T_Args >
     Owner( T_Args&& ... args )
-            : m_available(false), m_obj( std::forward<T_Args>( args )... ) {}
+            : m_available(true), m_obj( std::forward<T_Args>( args )... ) {}
 
     ~Owner()= default;
 

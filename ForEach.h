@@ -9,6 +9,14 @@
 #include "Owner.h"
 #include "Promise.h"
 
+
+/**
+ * For Each Task
+ *
+ * Specialisation of the Promise class with two Event types as parameters for the parent class
+ * The call parameters of the event functors are defined via these types
+ * Contains the code run by the worker thread
+ */
 template< typename T_ItPointer, typename T_Lambda >
 class ForEachTask : public Promise< EventContainer< T_ItPointer >, EventContainer<> > {
 private:
@@ -37,6 +45,15 @@ public:
 };
 
 
+/**
+ * Function to create a new Promise Builder for a ForEachTask
+ * @tparam T_ItPointer - Type of pointer to an iteratable object
+ * @tparam T_Lambda - Functor (Lambda) Type
+ * @param ptr - Pointer to an iteratable object
+ * @param p - Reference to the Worker Pool
+ * @param lam - Functor (Lambda) to call on each instance
+ * @return - New Promise Builder
+ */
 template< typename T_ItPointer, typename T_Lambda >
 auto forEach( T_ItPointer&& ptr, WorkerPool& p, T_Lambda&& lam ) {
     return createPromiseBuilder( std::make_unique< ForEachTask<T_ItPointer, T_Lambda> >(
