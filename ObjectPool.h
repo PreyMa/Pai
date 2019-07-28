@@ -7,24 +7,42 @@
 
 
 #include <mutex>
-#include <queue>
+#include <vector>
+
+namespace AllocArrayDetail {
+    /**
+     * Dummy Mutex Class to serve as interface, if no mutex is needed
+     */
+    class NoMutex {
+    public:
+        void lock() {}
+        void unlock() {}
+        bool try_lock() { return true; }
+    };
+}
 
 /**
- * Templated Allocation Array Class
+ *Templated Allocation Array Class
  * Stores objects that satisfy the size and alignment specifications
  * Objects are created in blocks of cells. Pointers to the empty cells
- * are held by queue, which
+ * are held by an array, that is accessed whenever a new object is
+ * constructed or an old one is destructed
+ * Whether the creation and deletion of objects should happen
+ * synchronized is determined by the T_Mutex template parameter
  *
  * @tparam T_CellSize - maximal needed cell size
  * @tparam T_CellAlign - maximal needed cell alignment
+ * @tparam T_Mutex - Type of mutex to use for synchronisation (by default a NoMutex dummy is used)
  */
-template< std::size_t T_CellSize, std::size_t T_CellAlign >
+template< std::size_t T_CellSize, std::size_t T_CellAlign, typename T_Mutex= AllocArrayDetail::NoMutex >
 class AllocArray {
 private:
 
+    static constexpr size_t T_defaultExceptedBlockNumber= 4;
+
     using T_Cell= typename std::aligned_storage< T_CellSize, T_CellAlign >::type;
 
-    std::mutex m_mutex;
+    T_Mutex m_mutex;
     std::vector< T_Cell* > m_slots;
 
     std::vector< std::unique_ptr< T_Cell[] > > m_blocks;
@@ -48,6 +66,7 @@ public:
     AllocArray( const unsigned int s )
             : m_blockSize( s ) {
         m_slots.reserve( m_blockSize );
+        m_blocks.reserve( T_defaultExceptedBlockNumber );
         addBlock();
     }
 
@@ -62,7 +81,7 @@ public:
         T_Cell* cell;
         {
             // Lock the array
-            std::lock_guard<std::mutex> lock(m_mutex);
+            std::lock_guard<T_Mutex> lock(m_mutex);
 
             // Add new block, if no cells are left
             if (m_slots.empty()) {
@@ -88,7 +107,7 @@ public:
         ptr->~T_Element();
 
         // Return the cell
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard<T_Mutex> lock(m_mutex);
         m_slots.emplace_back( reinterpret_cast<T_Cell*>(ptr ) );
     }
 
@@ -154,6 +173,26 @@ public:
 };
 
 
+/**
+ * Templated Synchronised Object Pool Class
+ * Like its parent it holds objects of arbitrary type in a pool
+ * It uses a standard mutex to synchronize creation and deletion
+ * of objects
+ *
+ * @tparam T_Elements - Pack of types to be stored
+ */
+template<typename ... T_Elements>
+class SyncObjectPool : public AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
+        ObjectPoolDetail::requiredAlign<T_Elements...>::value,
+        std::mutex > {
+public:
+    SyncObjectPool(const unsigned int s)
+            : AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
+            ObjectPoolDetail::requiredAlign<T_Elements...>::value >( s ) {}
+
+};
+
+
 
 
 /**
@@ -168,7 +207,7 @@ public:
  * @tparam T_Elements    - Pack of types to be stored
  */
 template< typename T_PointerBase, typename ... T_Elements >
-class StaticObjectPool : protected ObjectPool< T_Elements... > {
+class StaticObjectPool : protected SyncObjectPool< T_Elements... > {
 private:
 
     /**
@@ -190,7 +229,7 @@ public:
     using T_Pointer= std::unique_ptr<T_PointerBase, DeleteFunctor>;
 
     StaticObjectPool( const unsigned int s )
-            : ObjectPool<T_Elements...>( s ) {}
+            : SyncObjectPool<T_Elements...>( s ) {}
 
 
     static void initialize( const unsigned int s= T_defaultBlockSize ) {
@@ -201,7 +240,7 @@ public:
         return *m_instance;
     }
 
-    using ObjectPool<T_Elements...>::space;
+    using SyncObjectPool<T_Elements...>::space;
 
     template< typename T_Element, typename ...T_Args >
     T_Pointer alloc( T_Args&& ... args ) {
