@@ -86,7 +86,6 @@ public:
             : m_promise( std::move(pr) ), m_pool(p) {}
 
     ~PromiseBuilder() {
-        std::cout << "Adding to worker pool!\n";
         m_pool.submitTask( std::move(m_promise) );
     }
 

@@ -8,6 +8,7 @@
 #include <fstream>
 #include "Event.h"
 #include "Promise.h"
+#include "Console.h"
 
 
 /**
@@ -27,7 +28,7 @@ public:
             : m_path( std::move(path) ) {}
 
     void execute(Worker::WorkerInterface& intf) override {
-        std::cout << "Executing on a thread.\n";
+        Console::println( "Executing File Loader on a thread." );
 
         if( !m_callbackResolve ) {
             return;

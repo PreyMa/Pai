@@ -4,14 +4,17 @@
 #include "EventLoop.h"
 #include "FileLoader.h"
 #include "ForEach.h"
+#include "Crash.h"
+#include "Console.h"
 
 void myFileError( EventLoop& l, const std::string& p, const int err ) {
-    std::cout << "File '" << p << "' could not be loaded with code: " << err << std::endl;
+    Console::errorln( "File '", p, "' could not be loaded with code: ", err );
     l.stop();
 }
 
 int main() {
-    std::cout << "Hello, World! This is a demo!\n";
+    Console::println( "Hello, World! This is a demo!" );
+
 
     // Create new event loop and worker pool
     EventLoop loop;
@@ -25,11 +28,11 @@ int main() {
         // Read a text file
         readFile( "myFile.txt", p ).then( [&p](EventLoop&, std::string& data ) {
             // Output the contents of the file
-            std::cout << "Read a file: '" << data << "'\n";
+            Console::println( "Read a file: '", data, '\'' );
 
             // Read another file
             readFile( "myOtherFile.txt", p ).then( [](EventLoop& ctrl, std::string& data) {
-                std::cout << "Read another file: '" << data << "'\n";
+                Console::println( "Read another file: '", data, '\'' );
 
                 // Stop the event loop
                 ctrl.stop();
@@ -37,8 +40,8 @@ int main() {
             } ).except( myFileError );
 
         } ).except( [](EventLoop&, std::string& p, int err) {
-            std::cout << "Oh no something went wrong!\n";
-            std::cout << "Could not load file: '" << p << "' with error code: " << err << std::endl;
+            Console::errorln( "Oh no something went wrong!" );
+            Console::errorln( "Could not load file: '", p, "' with error code: ", err );
         } ) ;
     }
 
@@ -55,6 +58,7 @@ int main() {
             }
             // Return the array back to the event loop thread
             myVector= std::move( ptr );
+
         } );
     }
 

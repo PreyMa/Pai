@@ -6,17 +6,20 @@
 #include "EventQueue.h"
 #include "EventLoop.h"
 #include "Task.h"
+#include "Console.h"
 
 Worker::Worker(EventQueue<Task> &q, EventLoop& l, const unsigned int i)
         : m_enable( true ), m_id(i), m_queue(q), m_eventLoop(l), m_thread(Worker::run, this) {}
 
 void Worker::run()  {
-    while( m_enable ) {std::cout << "waiting for work "<< m_id << "... \n";
+    while( m_enable ) {
+        Console::println( "Worker ", m_id, " is waiting for work..." );
         WorkerInterface intf(this);
 
         auto ev= m_queue.waitForPop();
         ev->execute( intf );
-    }std::cout << "stopping " << m_id << "... \n";
+    }
+    Console::println( "Stopping worker ", m_id );
 }
 
 void Worker::sendEvent(std::unique_ptr<Event> ev) {

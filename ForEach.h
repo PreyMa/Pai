@@ -21,7 +21,8 @@ public:
             : m_array( std::forward<T_Param>( it ) ), m_function( std::forward<T_Lambda>(lam) ) {}
 
     void execute(Worker::WorkerInterface& intf) override {
-        std::cout << "Running for each: " << (bool)m_array << std::endl;
+        Console::println( "Executing Foreach on a thread." );
+
         for( auto& x : *m_array ) {
             m_function.get()( x );
         }
