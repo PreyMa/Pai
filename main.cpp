@@ -4,10 +4,7 @@
 #include "EventLoop.h"
 #include "FileLoader.h"
 #include "ForEach.h"
-#include "Crash.h"
 #include "Console.h"
-#include "SmallStack.h"
-#include "ObjectPool.h"
 
 void myFileError( EventLoop& l, const std::string& p, const int err ) {
     Console::errorln( "File '", p, "' could not be loaded with code: ", err );

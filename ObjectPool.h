@@ -62,7 +62,7 @@ private:
     }
 
 public:
-    AllocArray( const unsigned int s )
+    explicit AllocArray( const unsigned int s )
             : m_blockSize( s ) {
         m_slots.reserve( m_blockSize );
         addBlock();
@@ -164,7 +164,7 @@ template<typename ... T_Elements>
 class ObjectPool : public AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
                                       ObjectPoolDetail::requiredAlign<T_Elements...>::value > {
 public:
-    ObjectPool(const unsigned int s)
+    explicit ObjectPool(const unsigned int s)
             : AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
                           ObjectPoolDetail::requiredAlign<T_Elements...>::value >( s ) {}
 
@@ -184,7 +184,7 @@ class SyncObjectPool : public AllocArray< ObjectPoolDetail::requiredSize<T_Eleme
                                           ObjectPoolDetail::requiredAlign<T_Elements...>::value,
                                           std::mutex > {
 public:
-    SyncObjectPool(const unsigned int s)
+    explicit SyncObjectPool(const unsigned int s)
             : AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
             ObjectPoolDetail::requiredAlign<T_Elements...>::value,
             std::mutex                                                          >( s ) {}
@@ -227,7 +227,7 @@ public:
 
     using T_Pointer= std::unique_ptr<T_PointerBase, DeleteFunctor>;
 
-    StaticObjectPool( const unsigned int s )
+    explicit StaticObjectPool( const unsigned int s )
             : SyncObjectPool<T_Elements...>( s ) {}
 
 

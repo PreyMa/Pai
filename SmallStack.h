@@ -2,8 +2,8 @@
 // Created by Matthias Preymann on 29.07.2019.
 //
 
-#ifndef PROMISE_SMALLVECTOR_H
-#define PROMISE_SMALLVECTOR_H
+#ifndef PROMISE_SMALLSTACK_H
+#define PROMISE_SMALLSTACK_H
 
 #include <cstddef>
 #include <type_traits>
@@ -195,4 +195,4 @@ public:
 
 };
 
-#endif //PROMISE_SMALLVECTOR_H
+#endif //PROMISE_SMALLSTACK_H
