@@ -8,6 +8,7 @@
 
 #include <mutex>
 #include <vector>
+#include "SmallStack.h"
 
 namespace AllocArrayDetail {
     /**
@@ -38,14 +39,12 @@ template< std::size_t T_CellSize, std::size_t T_CellAlign, typename T_Mutex= All
 class AllocArray {
 private:
 
-    static constexpr size_t T_defaultExceptedBlockNumber= 4;
-
     using T_Cell= typename std::aligned_storage< T_CellSize, T_CellAlign >::type;
 
     T_Mutex m_mutex;
     std::vector< T_Cell* > m_slots;
 
-    std::vector< std::unique_ptr< T_Cell[] > > m_blocks;
+    SmallStack< std::unique_ptr< T_Cell[] > > m_blocks;
 
     const unsigned int m_blockSize;
 
@@ -59,14 +58,13 @@ private:
         }
 
         // Add the block to the array of blocks
-        m_blocks.push_back( std::move(block) );
+        m_blocks.push( std::move(block) );
     }
 
 public:
     AllocArray( const unsigned int s )
             : m_blockSize( s ) {
         m_slots.reserve( m_blockSize );
-        m_blocks.reserve( T_defaultExceptedBlockNumber );
         addBlock();
     }
 
@@ -183,12 +181,13 @@ public:
  */
 template<typename ... T_Elements>
 class SyncObjectPool : public AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
-        ObjectPoolDetail::requiredAlign<T_Elements...>::value,
-        std::mutex > {
+                                          ObjectPoolDetail::requiredAlign<T_Elements...>::value,
+                                          std::mutex > {
 public:
     SyncObjectPool(const unsigned int s)
             : AllocArray< ObjectPoolDetail::requiredSize<T_Elements...>::value,
-            ObjectPoolDetail::requiredAlign<T_Elements...>::value >( s ) {}
+            ObjectPoolDetail::requiredAlign<T_Elements...>::value,
+            std::mutex                                                          >( s ) {}
 
 };
 

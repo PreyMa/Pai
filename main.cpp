@@ -6,6 +6,7 @@
 #include "ForEach.h"
 #include "Crash.h"
 #include "Console.h"
+#include "SmallStack.h"
 #include "ObjectPool.h"
 
 void myFileError( EventLoop& l, const std::string& p, const int err ) {
