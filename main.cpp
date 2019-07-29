@@ -5,6 +5,7 @@
 #include "FileLoader.h"
 #include "ForEach.h"
 #include "Console.h"
+#include "Timer.h"
 
 void myFileError( EventLoop& l, const std::string& p, const int err ) {
     Console::errorln( "File '", p, "' could not be loaded with code: ", err );
@@ -14,10 +15,13 @@ void myFileError( EventLoop& l, const std::string& p, const int err ) {
 int main() {
     Console::println( "Hello, World! This is a demo!" );
 
+    using T_Mills= std::chrono::milliseconds;
+
 
     // Create new event loop and worker pool
     EventLoop loop;
     WorkerPool p(loop, 3);
+    Timer timer( loop );
 
     // Attach the worker pool to the event loop
     loop.setWorkers( p );
@@ -61,11 +65,16 @@ int main() {
         } );
     }
 
+
+
     // Run the event loop and process ingoing events
     loop.run();
 
     // Stop all worker threads
     p.stopAndJoin();
+
+    // Stop the timer thread
+    timer.stop();
 
     return 0;
 
