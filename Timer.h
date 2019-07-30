@@ -45,6 +45,7 @@ private:
             return (std::chrono::system_clock::now() >= m_timePoint );
         }
 
+        // Operator '>' needed for sorting
         inline bool operator>( const PendingEvent& x ) {
             return (this->m_timePoint > x.m_timePoint);
         }

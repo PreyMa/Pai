@@ -6,8 +6,7 @@
 #define PROMISE_WORKERPOOL_H
 
 #include "EventQueue.h"
-class Worker;
-class Task;
+#include "Task.h"
 class EventLoop;
 
 /**

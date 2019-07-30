@@ -8,7 +8,9 @@
 
 #include "Event.h"
 #include "EventQueue.h"
-#include "WorkerPool.h"
+
+class WorkerPool;
+class Timer;
 
 /**
  * Event Loop Class
@@ -17,16 +19,24 @@
 class EventLoop {
 private:
     EventQueue<Event> m_queue;
-    WorkerPool* m_pool;
+    WorkerPool* m_poolPtr;
+    Timer *m_timerPtr;
 
     bool m_enable;
 
+    void checkSetup();
+
 public:
     EventLoop()
-            : m_pool( nullptr ), m_enable(true) {}
+            : m_poolPtr(nullptr), m_timerPtr(nullptr), m_enable(true) {}
 
-    inline void setWorkers( WorkerPool& p ) {
-        m_pool= &p;
+    inline void setWorkers( WorkerPool& p ) { m_poolPtr= &p; }
+
+    inline void setTimer( Timer& t ) { m_timerPtr= &t; }
+
+    inline WorkerPool& getWorkers() { return *m_poolPtr; }
+
+    inline Timer& getTimer() { return *m_timerPtr;
     }
 
     void stop() {

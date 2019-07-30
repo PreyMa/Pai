@@ -3,7 +3,6 @@
 //
 
 #include "WorkerPool.h"
-#include "Task.h"
 #include "Worker.h"
 
 WorkerPool::WorkerPool(EventLoop &l, unsigned int n)  {
