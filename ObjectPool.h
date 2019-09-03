@@ -8,7 +8,9 @@
 
 #include <mutex>
 #include <vector>
+#include <memory>
 #include "SmallStack.h"
+
 
 namespace AllocArrayDetail {
     /**
@@ -20,10 +22,42 @@ namespace AllocArrayDetail {
         void unlock() {}
         bool try_lock() { return true; }
     };
+
+    template< int T_Size, int T_MaxSize >
+    class SizeChecker {
+        static_assert(T_Size <= T_MaxSize, "Element is too large for Object Pool cell.");
+    };
+
+    template< int T_Align, int T_MaxAlign >
+    class AlignChecker {
+        static_assert(T_Align <= T_MaxAlign, "Element alignment is not compatible with Object Pool cell.");
+    };
 }
 
+
 /**
- *Templated Allocation Array Class
+ * Abstract Deallocator Interface Class
+ * Allows destruction via virtual method
+ * Hides the templated type of object pools
+ */
+class Deallocator {
+protected:
+    virtual void deallocate( void* )= 0;
+
+public:
+    template< typename T_Element >
+    void free( T_Element* ptr ) {
+        // Destruct the object
+        ptr->~T_Element();
+
+        this->deallocate( ptr );
+    }
+};
+
+
+
+/**
+ * Templated Allocation Array Class
  * Stores objects that satisfy the size and alignment specifications
  * Objects are created in blocks of cells. Pointers to the empty cells
  * are held by an array, that is accessed whenever a new object is
@@ -36,7 +70,7 @@ namespace AllocArrayDetail {
  * @tparam T_Mutex - Type of mutex to use for synchronisation (by default a NoMutex dummy is used)
  */
 template< std::size_t T_CellSize, std::size_t T_CellAlign, typename T_Mutex= AllocArrayDetail::NoMutex >
-class AllocArray {
+class AllocArray : public Deallocator {
 private:
 
     using T_Cell= typename std::aligned_storage< T_CellSize, T_CellAlign >::type;
@@ -61,6 +95,13 @@ private:
         m_blocks.push( std::move(block) );
     }
 
+protected:
+    void deallocate( void* ptr ) override {
+        // Return the cell
+        std::lock_guard<T_Mutex> lock(m_mutex);
+        m_slots.emplace_back( reinterpret_cast<T_Cell*>(ptr ) );
+    }
+
 public:
     explicit AllocArray( const unsigned int s )
             : m_blockSize( s ) {
@@ -73,8 +114,8 @@ public:
     template< typename T_Element, typename ... T_Args >
     T_Element* create( T_Args&& ... args ) {
         // Assert size and alignment
-        static_assert(sizeof(T_Element) <= T_CellSize, "Element is too large for Object Pool cell.");
-        static_assert(alignof(T_Element) <= T_CellAlign, "Element alignment is not compatible with Object Pool cell.");
+        AllocArrayDetail::SizeChecker<  sizeof(T_Element),  T_CellSize  > checkSize;
+        AllocArrayDetail::AlignChecker< alignof(T_Element), T_CellAlign > checkAlign;
 
         T_Cell* cell;
         {
@@ -104,9 +145,7 @@ public:
         // Destruct the object
         ptr->~T_Element();
 
-        // Return the cell
-        std::lock_guard<T_Mutex> lock(m_mutex);
-        m_slots.emplace_back( reinterpret_cast<T_Cell*>(ptr ) );
+        deallocate( ptr );
     }
 
     std::size_t space() const {
@@ -192,6 +231,82 @@ public:
 };
 
 
+
+/**
+ * Infrastructure for PoolPointer class
+ * Pooled Object Class as interface
+ * Delete Functor for Pool Pointer
+ */
+class PooledObject;
+
+namespace ObjectPoolDetail {
+    class PoolPointerDeleteFunctor {
+    public:
+        void operator()( PooledObject* el );
+    };
+}
+
+class PooledObject {
+private:
+    Deallocator* const m_pool;
+
+public:
+    PooledObject( Deallocator* p )
+            : m_pool( p ) {}
+
+    virtual ~PooledObject() = default;
+
+protected:
+    friend class ObjectPoolDetail::PoolPointerDeleteFunctor;
+
+    void freeSelf() {
+        if( m_pool ) {
+            m_pool->free(this);
+        } else {
+            delete this;
+        }
+    }
+};
+
+template< typename T >
+using PoolPointer = std::unique_ptr< T, ObjectPoolDetail::PoolPointerDeleteFunctor >;
+
+
+/**
+ * Pool Allocator Class
+ * Allows allocation on an object pool
+ */
+template< typename T_Pool >
+class PoolAllocator {
+private:
+    T_Pool& m_pool;
+
+public:
+    PoolAllocator( T_Pool& p )
+            : m_pool( p ) {}
+
+    template< typename T_Element, typename ... T_Params >
+    PoolPointer< T_Element > allocate( T_Params&& ... args ) {
+        return PoolPointer<T_Element>( m_pool.template create<T_Element>( &m_pool, std::forward<T_Params>(args)... ) );
+    }
+};
+
+
+/**
+ * Heap Allocator Class
+ * Allows allocation on the heap
+ */
+class HeapAllocator {
+public:
+    HeapAllocator()= default;
+
+    template< typename T_Element, typename ... T_Params >
+    PoolPointer< T_Element > allocate( T_Params&& ... args ) {
+        return PoolPointer<T_Element>( new T_Element( nullptr, std::forward<T_Params>(args)... ) );
+    }
+};
+
+extern HeapAllocator heapAlloc;
 
 
 /**

@@ -8,6 +8,7 @@
 #include "Event.h"
 #include "Owner.h"
 #include "Promise.h"
+#include "Console.h"
 
 
 /**
@@ -25,8 +26,9 @@ private:
 
 public:
     template< typename T_Param >
-    explicit ForEachTask( T_Param&& it, T_Lambda&& lam )
-            : m_array( std::forward<T_Param>( it ) ), m_function( std::forward<T_Lambda>(lam) ) {}
+    explicit ForEachTask( Deallocator* d, T_Param&& it, T_Lambda&& lam )
+            : Promise< EventContainer< T_ItPointer >, EventContainer<> >( d ),
+              m_array( std::forward<T_Param>( it ) ), m_function( std::forward<T_Lambda>(lam) ) {}
 
     void execute(Worker::WorkerInterface& intf) override {
         Console::println( "Executing Foreach on a thread." );
@@ -54,10 +56,10 @@ public:
  * @param lam - Functor (Lambda) to call on each instance
  * @return - New Promise Builder
  */
-template< typename T_ItPointer, typename T_Lambda >
-auto forEach( T_ItPointer&& ptr, WorkerPool& p, T_Lambda&& lam ) {
-    return createPromiseBuilder( std::make_unique< ForEachTask<T_ItPointer, T_Lambda> >(
-            std::forward<T_ItPointer>(ptr), std::forward<T_Lambda>(lam)), p );
+template< typename T_ItPointer, typename T_Allocator, typename T_Lambda >
+auto forEach( T_ItPointer&& ptr, T_Allocator& alloc, WorkerPool& p, T_Lambda&& lam ) {
+    return createPromiseBuilder( alloc.template allocate< ForEachTask<T_ItPointer, T_Lambda> >(
+            std::forward<T_ItPointer>(ptr), std::forward<T_Lambda>(lam)), p, alloc );
 };
 
 

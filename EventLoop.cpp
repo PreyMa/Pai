@@ -5,7 +5,7 @@
 #include "EventLoop.h"
 #include "Console.h"
 
-void EventLoop::sendEvent(std::unique_ptr<Event> ev) {
+void EventLoop::sendEvent(PoolPointer<Event> ev) {
     m_queue.push( std::move(ev) );
 }
 
@@ -14,10 +14,15 @@ void EventLoop::run() {
     checkSetup();
 
     while( m_enable ) {
-        Console::println( "Waiting for events... " );
-        std::unique_ptr<Event> ev= m_queue.waitForPop();
-        ev->execute( *this );
+        //Console::println( "Waiting for events... " );
+        m_currentEvent= m_queue.waitForPop();
+        m_currentEvent->execute( *this );
+
+        // Deallocate event object
+        m_currentEvent.reset( nullptr );
     }
+
+    Console::println("Stopping event loop...");
 }
 
 void EventLoop::checkSetup() {

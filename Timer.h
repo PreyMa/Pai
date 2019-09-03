@@ -7,6 +7,7 @@
 
 
 #include <mutex>
+#include <condition_variable>
 #include <thread>
 #include <vector>
 #include <chrono>
@@ -32,11 +33,11 @@ private:
      */
     class PendingEvent {
     private:
-        std::unique_ptr<Event> m_event;
+        PoolPointer<Event> m_event;
         T_TimePoint m_timePoint;
 
     public:
-        PendingEvent( std::unique_ptr<Event> e, T_TimePoint t )
+        PendingEvent( PoolPointer<Event> e, T_TimePoint t )
                 : m_event( std::move(e) ), m_timePoint( t ) {}
 
         inline const T_TimePoint& getTime() const { return m_timePoint; }
@@ -68,7 +69,7 @@ private:
 public:
     explicit Timer( EventLoop& el );
 
-    void addTimedEvent( std::chrono::milliseconds ms, std::unique_ptr<Event> e );
+    void addTimedEvent( std::chrono::milliseconds ms, PoolPointer<Event> e );
 
     void run();
 

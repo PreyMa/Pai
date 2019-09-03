@@ -7,6 +7,7 @@
 
 #include <memory>
 #include "LambdaContainer.h"
+#include "ObjectPool.h"
 
 class EventLoop;
 
@@ -14,21 +15,15 @@ class EventLoop;
  * Abstract Event Class
  * Interface for code to be run on the event loop thread
  */
-class Event {
+class Event : public PooledObject {
 private:
 
 public:
-    Event() = default;
+    Event( Deallocator* d )
+            : PooledObject( d ) {}
+
     virtual ~Event() = default;
     virtual void execute( EventLoop& ) = 0;
-};
-
-/**
- * Non-Abstarct Event Class
- */
-class EventBase : public Event {
-public:
-    void execute( EventLoop& ) override { throw std::runtime_error("Calling unused base class Event method!\n"); }
 };
 
 
@@ -43,12 +38,15 @@ public:
  * @tparam T_TupleData - Types of data which are used to call the functor with
  */
 template< typename ... T_TupleData >
-class EventContainer : public virtual EventBase {
+class EventContainer : public Event {
 protected:
     using T_Tuple= std::tuple< T_TupleData... >;
     T_Tuple m_data;
 
 public:
+    EventContainer( Deallocator* d )
+            : Event( d ) {}
+
     inline T_Tuple& getData() { return m_data; }
 
     template< unsigned int T_index >
@@ -78,8 +76,8 @@ private:
     }
 
 public:
-    EventImplement( T_Lambda&& lam )
-            : m_function( std::forward<T_Lambda>(lam) ) {}
+    EventImplement( Deallocator* d, T_Lambda&& lam )
+            : T_Parent( d ), m_function( std::forward<T_Lambda>(lam) ) {}
 
     void execute( EventLoop& l ) override {
 
@@ -101,11 +99,30 @@ protected:
     LambdaContainer<T_Lambda> m_function;
 
 public:
-    FunctionEvent( T_Lambda&& fn )
-            : m_function( std::forward<T_Lambda>(fn) ) {}
+    FunctionEvent( Deallocator* d, T_Lambda&& fn )
+            : Event( d ), m_function( std::forward<T_Lambda>(fn) ) {}
 
     void execute( EventLoop& loop ) override {
         m_function.get()( loop );
+    }
+};
+
+
+template< typename T_Class >
+class MethodEvent : public Event {
+public:
+    using T_Method= void(T_Class::*)( EventLoop& );
+protected:
+    T_Class* const m_objPtr;
+    T_Method const m_method;
+
+public:
+    MethodEvent( Deallocator* d, T_Class* const o, T_Method m )
+            : Event( d ), m_objPtr(o), m_method(m) {}
+
+    void execute( EventLoop& loop ) override {
+        // Call member function with object pointer as context
+        ((m_objPtr)->*(m_method))( loop );
     }
 };
 
@@ -120,9 +137,9 @@ public:
  * @param lam - Lambda to be stored
  * @return Object of type T_Create
  */
-template< template<class> typename T_Create, typename T_Lambda >
-std::unique_ptr<T_Create<T_Lambda>> createEvent( T_Lambda&& lam ) {
-    return std::make_unique<T_Create<T_Lambda>>( std::forward<T_Lambda>(lam) );
+template< template<class> typename T_Create, typename T_Alloc, typename T_Lambda >
+std::unique_ptr<T_Create<T_Lambda>> createEvent( T_Alloc& alloc, T_Lambda&& lam ) {
+    return alloc.template allocate<T_Create<T_Lambda>>( std::forward<T_Lambda>(lam) );
 };
 
 #endif //PROMISE_EVENT_H

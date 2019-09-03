@@ -2,6 +2,8 @@
 // Created by Matthias Preymann on 27.07.2019.
 //
 
+#include <cstdlib>
+
 #include "Crash.h"
 #include "Console.h"
 
@@ -60,6 +62,7 @@ void CrashManager::signalHandler(int sig) {
 #ifdef _WIN32
 #include <windows.h>
 #include <dbghelp.h>
+#include <sstream>
 
 
 template< typename T_Type, int bufferSize >
@@ -90,32 +93,74 @@ void CrashManager::printStacktrace() {
     IMAGEHLP_LINE64 line;
     line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
 
-    // Iterate through frame addresses and load each symbol
-    for( unsigned int i= 0; i!= numberOfFrames; i++ ) {
-        auto address= (DWORD64)symbolAddresses[i];
-        SymFromAddr( curProcess, address, nullptr, symbolPtr );
-
-        // Print symbol name if one was found
-        if( symbolPtr->Name[0] == '\0' ) {
-            Console::error( "\tat '???" );
-        } else {
-            Console::error( "\tat '", symbolPtr->Name );
-        }
-
-        // Print file and line if information debug info was found
-        DWORD displacement;
-        if( SymGetLineFromAddr64( curProcess, address, &displacement, &line ) ) {
-            Console::errorln( "' in '", line.FileName, "' at line ", line.LineNumber );
-            Console::errorln( " at address 0x", std::hex, address, std::dec );
-
-        } else {
-            Console::errorln( "' at address 0x", std::hex, address, std::dec );
-            Console::errorln( "\t\t...Resolving of line from address failed (SymGetLineFromAddr64) with code: ", GetLastError() );
-        }
-    }
+    // Get the name of the symbols based on their addresses
+    resolveSymbols( symbolAddresses, numberOfFrames );
 
     Console::flushError();
 }
+
+void CrashManager::resolveSymbols( void* symbolAddresses[], const unsigned int numberOfFrames ) {
+
+    // Retrieve path to the executable of the current process
+    char path[CrashManager::maxPathLength];
+    if( !GetModuleFileNameA(nullptr, path, CrashManager::maxPathLength) ) {
+        Console::errorln("Could not retrieve executable path");
+
+        printAddresses( symbolAddresses, numberOfFrames );
+        return;
+    }
+
+    // Build shell command
+    std::stringstream stream;
+    stream << std::hex << "addr2line -f -C -e \"" << path << '\"';
+
+    for( unsigned int i=0; i!= numberOfFrames; i++ ) {
+        auto address= (DWORD64)symbolAddresses[i];
+        stream << " 0x" << address;
+    }
+
+    // Call addr2line and pipe back its output
+    auto pipe= popen( stream.str().c_str(), "r" );
+    if( !pipe ) {
+        Console::println("Could not run addr2line");
+        printAddresses(symbolAddresses, numberOfFrames);
+        return;
+    }
+
+    // Iterate over each line and format the output
+    unsigned int i= 0;
+    while( !feof( pipe ) ) {
+        // Get symbol name
+        if( fgets(path, CrashManager::maxPathLength, pipe ) ) {
+
+            path[ strlen(path)-1 ]= '\0';
+            Console::error("at '", path, "' (0x", std::hex, symbolAddresses[i], ") ");
+
+            // Only print the path if it can be found
+            if( fgets(path, CrashManager::maxPathLength, pipe ) ) {
+                path[ strlen(path)-1 ]= '\0';
+                if( *path != '?' ) {
+                    Console::error( "at '", path, '\'' );
+                }
+            }
+
+            Console::error("\n\n");
+
+            i++;
+        }
+
+    }
+}
+
+
+void CrashManager::printAddresses( void* symbolAddresses[], const unsigned int numberOfFrames ) {
+    // Iterate through frame addresses
+    for( unsigned int i=0; i!= numberOfFrames; i++ ) {
+        auto address= (DWORD64)symbolAddresses[i];
+        Console::errorln( "at '\?\?' at address 0x", std::hex, address, std::dec );
+    }
+}
+
 
 #endif
 

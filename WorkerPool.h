@@ -21,15 +21,15 @@ private:
 public:
     WorkerPool( EventLoop& l, unsigned int n );
 
-    inline unsigned int size() const {
-        m_workers.size();
+    inline std::size_t size() const {
+        return m_workers.size();
     }
 
     void spawnWorker( EventLoop& l );
 
     void stopAndJoin();
 
-    void submitTask(std::unique_ptr<Task> e);
+    void submitTask(PoolPointer<Task> e);
 };
 
 

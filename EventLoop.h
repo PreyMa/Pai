@@ -8,6 +8,7 @@
 
 #include "Event.h"
 #include "EventQueue.h"
+#include "PoolDefs.h"
 
 class WorkerPool;
 class Timer;
@@ -22,13 +23,17 @@ private:
     WorkerPool* m_poolPtr;
     Timer *m_timerPtr;
 
+    using T_Allocator= PoolAllocator< PoolDefs::T_EventPool >;
+    T_Allocator& m_allocator;
+
+    PoolPointer<Event> m_currentEvent;
     bool m_enable;
 
     void checkSetup();
 
 public:
-    EventLoop()
-            : m_poolPtr(nullptr), m_timerPtr(nullptr), m_enable(true) {}
+    EventLoop( T_Allocator& alloc )
+            : m_poolPtr(nullptr), m_timerPtr(nullptr), m_allocator(alloc), m_enable(true) {}
 
     inline void setWorkers( WorkerPool& p ) { m_poolPtr= &p; }
 
@@ -36,14 +41,17 @@ public:
 
     inline WorkerPool& getWorkers() { return *m_poolPtr; }
 
-    inline Timer& getTimer() { return *m_timerPtr;
-    }
+    inline Timer& getTimer() { return *m_timerPtr; }
+
+    inline T_Allocator& getAlloc() { return m_allocator; }
+
+    inline PoolPointer<Event> getEventHandle() { return std::move(m_currentEvent); }
 
     void stop() {
         m_enable= false;
     }
 
-    void sendEvent( std::unique_ptr<Event> ev );
+    void sendEvent( PoolPointer<Event> ev );
 
     void run();
 };

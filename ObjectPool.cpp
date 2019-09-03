@@ -3,3 +3,9 @@
 //
 
 #include "ObjectPool.h"
+
+void ObjectPoolDetail::PoolPointerDeleteFunctor::operator()(PooledObject *el)  {
+    el->freeSelf();
+}
+
+HeapAllocator heapAlloc;

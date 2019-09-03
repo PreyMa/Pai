@@ -6,17 +6,17 @@
 #define PROMISE_TASK_H
 
 #include "Worker.h"
+#include "ObjectPool.h"
 
 
 /**
  * Abstract Task Class
  * Interface for code to be run on a worker thread
  */
-class Task {
-private:
-
+class Task : public PooledObject {
 public:
-    Task() = default;
+    Task( Deallocator* d )
+            : PooledObject( d ) {}
     virtual ~Task() = default;
     virtual void execute( Worker::WorkerInterface& ) = 0;
 };
@@ -29,7 +29,8 @@ public:
 class StopTask : public Task {
 public:
 
-    StopTask()= default;
+    StopTask( Deallocator* d ) :
+            Task( d ) {}
 
     void execute( Worker::WorkerInterface& w ) override {
         w.stop();

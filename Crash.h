@@ -14,12 +14,17 @@ class CrashManager {
 private:
     static constexpr unsigned int traceBufferLength= 1024;
     static constexpr unsigned int traceSymbolNameLength= 1024;
+    static constexpr unsigned int maxPathLength= 1024;
 
     // Internal single instance
     static CrashManager m_manager;
 
     // private static constructor
     CrashManager();
+
+
+    static void resolveSymbols(void **, unsigned int);
+    static void printAddresses(void **, unsigned int);
 public:
 
     /**
@@ -39,9 +44,9 @@ public:
      * Handler called if the application receives a signal (SIGSEGV)
      */
     static void signalHandler(int);
-
 };
 
 
 
 #endif //PROMISE_CRASH_H
+

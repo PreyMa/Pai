@@ -9,6 +9,7 @@
 #include "EventLoop.h"
 #include "Timer.h"
 #include "WorkerPool.h"
+#include "PoolDefs.h"
 
 /**
  * Abstract Application Class
@@ -18,10 +19,17 @@
  */
 class Application {
 protected:
-    EventLoop m_eventLoop;
     WorkerPool m_workes;
     Timer m_timer;
 
+    using T_Pool= PoolDefs::T_EventPool;
+
+    static constexpr size_t T_taskInitCount= 100;
+    T_Pool m_taskPool;
+
+    PoolAllocator< T_Pool > m_alloc;
+
+    EventLoop m_eventLoop;
 
 public:
     static constexpr unsigned int T_defaultWorkerCount= 3;
@@ -40,6 +48,7 @@ protected:
      * Client methods
      */
     virtual void init()= 0;
+    virtual void exit()= 0;
 };
 
 

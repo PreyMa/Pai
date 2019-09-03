@@ -21,8 +21,8 @@
 template< typename T_ResolveEventTemp, typename T_RejectEventTemp >
 class Promise : public Task {
 protected:
-    std::unique_ptr<T_ResolveEventTemp> m_callbackResolve;
-    std::unique_ptr<T_RejectEventTemp> m_callbackReject;
+    PoolPointer<T_ResolveEventTemp> m_callbackResolve;
+    PoolPointer<T_RejectEventTemp> m_callbackReject;
 
 public:
     // Types of the base events (pointer types)
@@ -37,21 +37,21 @@ public:
     using T_RejectEvent = EventImplement< T_RejectEventBase, T_Lambda >;
 
     // Constructors
-    Promise( std::unique_ptr<T_ResolveEventBase> res, std::unique_ptr<T_RejectEventBase> rej )
-            : m_callbackResolve( std::move(res) ), m_callbackReject( std::move(rej) ) {}
+    Promise( Deallocator* d, PoolPointer<T_ResolveEventBase> res, PoolPointer<T_RejectEventBase> rej )
+            : Task( d ), m_callbackResolve( std::move(res) ), m_callbackReject( std::move(rej) ) {}
 
-    Promise()
-            : m_callbackResolve(nullptr), m_callbackReject(nullptr) {}
+    Promise( Deallocator* d )
+            : Task( d ), m_callbackResolve(nullptr), m_callbackReject(nullptr) {}
 
     // Setters
-    inline void setResolve( std::unique_ptr<T_ResolveEventBase> r ) {
+    inline void setResolve( PoolPointer<T_ResolveEventBase> r ) {
         if( m_callbackResolve ) {
             throw std::runtime_error("Promise: Resolve callback cannot be overridden.");
         }
         m_callbackResolve= std::move( r );
     }
 
-    inline void setReject( std::unique_ptr<T_RejectEventBase> r ) {
+    inline void setReject( PoolPointer<T_RejectEventBase> r ) {
         if( m_callbackReject ) {
             throw std::runtime_error("Promise: Reject callback cannot be overridden.");
         }
@@ -66,11 +66,12 @@ public:
  *
  * @tparam T_Promise - Type of promise to point to
  */
-template< typename T_Promise >
+template< typename T_Promise, typename T_Allocator >
 class PromiseBuilder {
 private:
-    std::unique_ptr<T_Promise> m_promise;
+    PoolPointer<T_Promise> m_promise;
     WorkerPool& m_pool;
+    T_Allocator& m_alloc;
 
 public:
 
@@ -82,24 +83,25 @@ public:
     using T_RejectEventType= typename T_Promise::template T_RejectEvent<T_X>;
 
     // Constructors & Destructors
-    PromiseBuilder( std::unique_ptr<T_Promise> pr, WorkerPool& p )
-            : m_promise( std::move(pr) ), m_pool(p) {}
+    PromiseBuilder( PoolPointer<T_Promise> pr, WorkerPool& p, T_Allocator& a )
+            : m_promise( std::move(pr) ), m_pool(p), m_alloc(a) {}
 
     ~PromiseBuilder() {
         m_pool.submitTask( std::move(m_promise) );
     }
 
 
-    PromiseBuilder( PromiseBuilder<T_Promise>&& x )= default;
+    // Enable moving
+    PromiseBuilder( PromiseBuilder<T_Promise, T_Allocator>&& x )= default;
 
 
     // Chainable setters
-    inline PromiseBuilder& then( std::unique_ptr<typename T_Promise::T_ResolveEventBase> res ) {
+    inline PromiseBuilder& then( PoolPointer<typename T_Promise::T_ResolveEventBase> res ) {
         m_promise->setResolve( std::move(res) );
         return *this;
     }
 
-    inline PromiseBuilder& except( std::unique_ptr<typename T_Promise::T_RejectEventBase> rej ) {
+    inline PromiseBuilder& except( PoolPointer<typename T_Promise::T_RejectEventBase> rej ) {
         m_promise->setReject( std::move(rej) );
         return *this;
     }
@@ -109,13 +111,13 @@ public:
     template< typename T_Lambda >
     inline PromiseBuilder& then( T_Lambda&& lam ) {
 
-        m_promise->setResolve( std::make_unique<T_ResolveEventType<T_Lambda> >( std::forward<T_Lambda>(lam) ) );
+        m_promise->setResolve( m_alloc.template allocate<T_ResolveEventType<T_Lambda> >( std::forward<T_Lambda>(lam) ) );
         return *this;
     }
 
     template< typename T_Lambda >
     inline PromiseBuilder& except( T_Lambda&& lam ) {
-        m_promise->setReject( std::make_unique<T_RejectEventType<T_Lambda> >( std::forward<T_Lambda>(lam) ) );
+        m_promise->setReject( m_alloc.template allocate<T_RejectEventType<T_Lambda> >( std::forward<T_Lambda>(lam) ) );
         return *this;
     }
 };
@@ -132,9 +134,9 @@ public:
  * @param p - Reference to the Worker Pool
  * @return - new Promise Builder
  */
-template< typename T_PromiseType >
-PromiseBuilder<T_PromiseType> createPromiseBuilder( std::unique_ptr<T_PromiseType> promise, WorkerPool& p ) {
-    return PromiseBuilder<T_PromiseType>( std::move(promise), p );
+template< typename T_PromiseType, typename T_Allocator >
+auto createPromiseBuilder( PoolPointer<T_PromiseType> promise, WorkerPool& p, T_Allocator& a ) {
+    return PromiseBuilder<T_PromiseType, T_Allocator>( std::move(promise), p, a );
 }
 
 

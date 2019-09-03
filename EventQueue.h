@@ -7,7 +7,9 @@
 
 #include <mutex>
 #include <queue>
+#include <condition_variable>
 
+#include "ObjectPool.h"
 
 /**
  * Templated Atomic Event Queue Class
@@ -25,9 +27,9 @@ private:
     std::mutex m_mutex;
     std::condition_variable m_cvar;
 
-    std::queue< std::unique_ptr< T_Event > > m_queue;
+    std::queue< PoolPointer< T_Event > > m_queue;
 
-    std::unique_ptr<T_Event> unsafePop()  {
+    PoolPointer<T_Event> unsafePop()  {
         if( m_queue.empty() ) {
             return nullptr;
         }
@@ -37,7 +39,7 @@ private:
         return p;
     }
 
-    void unsafePush(std::unique_ptr<T_Event> p) {
+    void unsafePush(PoolPointer<T_Event> p) {
         m_queue.emplace( std::move( p ) );
         m_cvar.notify_one();
     }
@@ -45,21 +47,21 @@ private:
 public:
     EventQueue() = default;
 
-    void push(std::unique_ptr<T_Event> p)  {
+    void push(PoolPointer<T_Event> p)  {
         std::lock_guard<std::mutex> lock( m_mutex );
 
         unsafePush( std::move(p) );
     }
 
-    std::unique_ptr<T_Event> pop()  {
+    PoolPointer<T_Event> pop()  {
         std::lock_guard<std::mutex> lock( m_mutex );
 
         return unsafePop();
     }
 
-    std::unique_ptr<T_Event> waitForPop() {
+    PoolPointer<T_Event> waitForPop() {
         std::unique_lock<std::mutex> lock( m_mutex );
-        std::unique_ptr<T_Event> p;
+        PoolPointer<T_Event> p;
 
         while( (p= this->unsafePop()) == nullptr ) {
             m_cvar.wait( lock );
@@ -68,13 +70,13 @@ public:
         return p;
     }
 
-    template< typename T >
-    void replace( unsigned int num ) {
+    template< typename T, typename T_Alloc >
+    void replace( T_Alloc& alloc, unsigned int num ) {
         std::lock_guard<std::mutex> lock( m_mutex );
-        std::queue<std::unique_ptr<T_Event>>().swap( m_queue );
+        std::queue<PoolPointer<T_Event>>().swap( m_queue );
 
         for( ; num; num-- ) {
-            unsafePush( std::make_unique<T>() );
+            unsafePush( alloc.template allocate<T>() );
         }
     }
 };

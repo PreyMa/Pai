@@ -7,6 +7,7 @@
 
 #include <thread>
 #include <iostream>
+#include "ObjectPool.h"
 
 class Task;
 
@@ -40,7 +41,7 @@ private:
         return m_id;
     }
 
-    void sendEvent( std::unique_ptr<Event> ev );
+    void sendEvent( PoolPointer<Event> ev );
 
 public:
 
@@ -60,7 +61,7 @@ public:
             return m_worker.getID();
         }
 
-        void sendEvent( std::unique_ptr<Event> ev );
+        void sendEvent( PoolPointer<Event> ev );
     };
 
     friend WorkerInterface;

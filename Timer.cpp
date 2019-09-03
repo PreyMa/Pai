@@ -15,11 +15,11 @@ void Timer::run() {
     while( true ) {
         // If the list has an event, wait until it is ready
         if( m_eventList.isEmpty() ) {
-            Console::println("Tmr: No events to wait for...");
+            //Console::println("Tmr: No events to wait for...");
             m_cvar.wait( m_lock );
 
         } else {
-            Console::println("Tmr: wait for event to be ready...");
+            //Console::println("Tmr: wait for event to be ready...");
             m_cvar.wait_until( m_lock, m_eventList.front().getTime() );
         }
 
@@ -35,7 +35,7 @@ void Timer::run() {
     Console::println("Timer stopped...");
 }
 
-void Timer::addTimedEvent( std::chrono::milliseconds ms, std::unique_ptr<Event> e ) {
+void Timer::addTimedEvent( std::chrono::milliseconds ms, PoolPointer<Event> e ) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // Calculate absolute time stamp from current time and the provided offset
@@ -53,12 +53,12 @@ void Timer::dispatchEvents() {
 
         // If the next event is not ready yet, go back waiting
         if( !pending.isReady() ) {
-            Console::println("Tmr: No events to dispatch!");
+            //Console::println("Tmr: No events to dispatch!");
             return;
         }
 
         // Send the event and remove it from the list
-        Console::println( "Tmr: Dispatch" );
+        //Console::println( "Tmr: Dispatch" );
         pending.send( m_eventLoop );
         m_eventList.popFront();
     }

@@ -22,10 +22,10 @@ void Worker::run()  {
     Console::println( "Stopping worker ", m_id );
 }
 
-void Worker::sendEvent(std::unique_ptr<Event> ev) {
+void Worker::sendEvent(PoolPointer<Event> ev) {
     m_eventLoop.sendEvent( std::move(ev) );
 }
 
-void Worker::WorkerInterface::sendEvent(std::unique_ptr<Event> ev) {
+void Worker::WorkerInterface::sendEvent(PoolPointer<Event> ev) {
     m_worker.sendEvent( std::move(ev) );
 }
